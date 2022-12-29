@@ -1,10 +1,19 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Net;
-using TestHttpService;
+using TestHttpService.Services;
 
-var httpService = new HttpServiceSample();
+Guid myuuid = Guid.NewGuid();
+string myuuidAsString = myuuid.ToString();
 
-var t = httpService.StartAsync();
+Console.WriteLine("Your UUID is: " + myuuidAsString);
+
+var webService = new WebsockService(8021);
+webService.StartAsync();
+
+var httpService = new HttpService();
+httpService.StartAsync();
+
 
 int counter = 0;
 
@@ -37,7 +46,6 @@ httpService.OnRequest += (HttpListenerRequest request, HttpListenerResponse resp
         {
             filename = "index.html";
 
-            response.AddHeader("Content-Type", "text/html; charset=utf-8");
             response.AddHeader("Cache-Control", "max-age=1500, must-revalidate");
         }
         else
@@ -46,11 +54,26 @@ httpService.OnRequest += (HttpListenerRequest request, HttpListenerResponse resp
             Console.WriteLine($"Resource: {filename}");
             Console.WriteLine(request.Headers);
 
-            response.AddHeader("Content-Type", "image/jpg");
             response.AddHeader("Date", DateTime.Now.ToString("r"));
             response.AddHeader("Last-Modified", File.GetLastWriteTime(filename).ToString("r"));
             response.AddHeader("Cache-Control", "no-cache");
         }
+
+        var ext = Path.GetExtension(filename);
+        switch (ext)
+        {
+            case ".html":
+                response.AddHeader("Content-Type", "text/html; charset=utf-8");
+                break;
+            case ".jpg":
+                response.AddHeader("Content-Type", "image/jpg");
+                break;
+            case ".png":
+                response.AddHeader("Content-Type", "image/png");
+                break;
+
+        }
+
 
         using FileStream file = new FileStream(filename, FileMode.Open, FileAccess.Read);
         var buffer = new byte[file.Length];

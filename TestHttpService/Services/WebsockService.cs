@@ -1,29 +1,37 @@
-﻿namespace TestHttpService
+﻿namespace TestHttpService.Services
 {
     using System;
-    using System.Collections;
     using System.Collections.Generic;
     using System.Linq;
     using System.Net;
+    using System.Net.Sockets;
     using System.Text;
     using System.Threading.Tasks;
 
-    internal class HttpServiceSample
+    internal class WebsockService
     {
         readonly int port = 80;
+        readonly string ip = "127.0.0.1";
 
         readonly CancellationTokenSource cancellationSource = new();
 
-        readonly HttpListener listener = new();
+        readonly TcpListener listener;
+
+        private string ServiceName { get; set; } = string.Empty;
+
+        private List<WebsockHandle> clientHandles = new();
+
+        private Task? runTask;
 
         public Func<HttpListenerRequest, HttpListenerResponse, bool>? OnRequest { get; set; }
 
-        public HttpServiceSample()
-        {
-            listener.Prefixes.Add($"http://+:{port}/TestService/");
-        }
 
-        Task? runTask;
+        public WebsockService(int port = 80, string name = "TestWebHookService")
+        {
+            this.port = port;
+            ServiceName = name;
+            listener = new TcpListener(IPAddress.Parse(ip), port);
+        }
 
         public bool StartAsync()
         {
@@ -37,22 +45,25 @@
 
         public void Stop()
         {
+            foreach(var handle in clientHandles)
+            {
+                handle.Stop();
+            }
             cancellationSource.Cancel();
             runTask?.Wait();
-
         }
 
         void Start()
         {
             listener.Start();
 
-            Console.WriteLine($"Listening on port {port}...");
+            Console.WriteLine($"WebsockService '{ServiceName}' started on port {port}...");
 
             try
             {
                 while (true)
                 {
-                    var task = listener.GetContextAsync();
+                    var task = listener.AcceptTcpClientAsync();
 
                     try
                     {
@@ -66,22 +77,10 @@
 
                     if (task.IsCompleted)
                     {
-                        HttpListenerContext ctx = task.Result;
+                        var clinetId = $"Client#{clientHandles.Count}";
+                        var handle = new WebsockHandle(clinetId, task.Result);
 
-
-                        using (HttpListenerResponse response = ctx.Response)
-                        {
-                            if ((OnRequest?.Invoke(ctx.Request, response) ?? false) == false)
-                            {
-                                response.StatusCode = (int)HttpStatusCode.NotFound;
-                                response.StatusDescription = "Not found";
-                            }
-                            else
-                            {
-                                response.StatusCode = (int)HttpStatusCode.OK;
-                                response.StatusDescription = "Status OK";
-                            }
-                        }
+                        clientHandles.Add(handle);
                     }
 
                 }
