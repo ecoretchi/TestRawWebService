@@ -17,6 +17,9 @@
     </None>  
     <None Update="TheStars.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>  
+    <None Update="TheStars2.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
   
